@@ -10,159 +10,71 @@ from blip import BlipModel
 from yolov8Objects import locate_objects_in_frame
 from ocr import DocTROCR
 from camera_manager import CameraManager
+from lipreader import LipReader
+
 
 class VoiceAssistant:
     def __init__(self):
-        self.glasses = None
-        self.is_processing = False
-        self.processing_lock = threading.Lock()
-
-        # Configuration of the glasses
-        self.VENDOR_ID = 0x17EF
-        self.PRODUCT_ID = 0xB813
-
-        # Initialise all modules
+        # Core components
         self.recorder = AudioRecorder()
-        self.llm = LMStudioResponder(
-            model_name="mistralai/mistral-7b-instruct-v0.3",
-            system_prompt="Respond with 1 sentence only."
-        )
-        self.stt_app = SpeechToTextApplication("audio")
-        self.classifier = IntentClassifier(model_name="all-distilroberta-v1") 
+        self.llm = LMStudioResponder()
+        self.classifier = IntentClassifier()
         self.blip = BlipModel()
-        self.blip.load()
         self.ocr = DocTROCR()
-        WakeWordDetector.download_models() # Download default models if not present
+
+        # Camera / LipReader targeting Lenovo A3
+        A3_CAM = "Lenovo ThinkReality A3 RGB Camera"
+        self.camera_manager = CameraManager(camera_id=f"video={A3_CAM}", image_dir="image")
+        self.lip_reader = LipReader(camera_id=f"video={A3_CAM}", backend="torchscript", on_text=self.on_lip_text)
+
+        # Wake word
         self.detector = WakeWordDetector(
-            wakeword_models=["models\hey_lucy.onnx"]
+            wakeword_models=["models\\hey_lucy.onnx"]
         )
         self.detector.register_callback("hey_lucy", self.on_wake_word_detected)
-        self.camera_manager = CameraManager(camera_id=2, image_dir="image")
 
-        # Auto-select default microphone
-        default_mic = self.recorder.mic_selector.get_default_microphone()
-        if default_mic:
-            self.recorder.set_microphone(default_mic["index"])
-            print(f"🎚️ Default microphone selected: {default_mic['name']}")
-        else:
-            print("❌ No microphones available.")
-
-    def on_voice_trigger(self, event=None):
-        """Callback for wake word"""
-        with self.processing_lock:
-            if self.is_processing:
-                print("🔄 Already processing. Please wait...")
-                return
-            self.is_processing = True
-
+        # Prefer the A3 microphone if present
         try:
-            talk_stream(" What can I do for you?")
-            print("🎤 Trigger detected — start listening...")
-            self.process_voice_command()
+            from utils.audio_devices import find_input_device_index
+            idx = find_input_device_index()
+            if idx is not None and hasattr(self.recorder, "set_microphone"):
+                self.recorder.set_microphone(idx)
+                print(f"🎙️ Using Lenovo A3 microphone (index {idx})")
+            else:
+                print("🎙️ A3 mic not found — using system default")
         except Exception as e:
-            print(f"❌ Error during voice processing: {e}")
-        finally:
-            with self.processing_lock:
-                self.is_processing = False
-            print("✅ Ready for next command!\n")
+            print(f"⚠️ Mic selection error: {e}")
 
-    def process_voice_command(self):
-        """Record, transcribe, and handle LLM response"""
-        try:
-            time.sleep(0.1)  # Small delay to stabilize
-            print("Starting recording...")
-            self.recorder.start_recording()
-            while self.recorder.is_recording:
-                time.sleep(0.1)
-            print("Recording finished!")
-            self.recorder.save_recording("audio/last_rec.wav")
-            self.recorder.cleanup()
+    def on_lip_text(self, text: str):
+        if text:
+            try:
+                from utils.tts_out import speak_on_device
+                speak_on_device(text, device_query=("voice-audio","qualcomm","a3"))
+            except Exception:
+                talk_stream(text)
 
-            print("Transcribing audio file...")
-            prompt = self.stt_app.transcribe()
-            print(f"Transcription: {prompt}")
-
-            if not prompt or not prompt.strip():
-                print("❌ No speech detected or empty transcription. Try again.")
-                return
-
-            if len(prompt.strip()) < 2:
-                print("❌ Transcription too short, probably noise. Try again.")
-                return
-
-            intent,confidence = self.classifier.classify(prompt)
-
-            match intent:
-                case "read_text":
-                    image_path = self.camera_manager.take_picture()
-                    if image_path:
-                        caption = self.ocr.extract_text_from_frame(image_path)
-                        talk_stream(caption)
-                        self.camera_manager.cleanup_images()
-                    else:
-                        talk_stream("I did not manage to capture an image. Try again.")
-                case "locate_object":
-                    image_path = self.camera_manager.take_picture()
-                    if image_path:
-                        caption = locate_objects_in_frame(prompt,image_path)
-                        talk_stream(caption)
-                        self.camera_manager.cleanup_images()
-                    else:
-                        talk_stream("I did not manage to capture an image. Try again.")
-                case "describe_scene":
-                    image_path = self.camera_manager.take_picture()
-                    if image_path:
-                        caption = self.blip.generate_caption(image_path)
-                        print(f"Generated caption: {caption}")
-                        talk_stream(caption)
-                        self.camera_manager.cleanup_images()
-                    else:
-                        talk_stream("I did not manage to capture an image. Try again.")
-                case "activate_detection_collision":
-                    talk_stream("Classifying intent as 'activate detection collision'.")
-                    # Add collision detection functionality here
-                case "other":
-                    talk_stream("I don't understand that command. Please try again.")
-        except Exception as e:
-            print(f"❌ Error in voice processing: {e}")
-            import traceback
-            traceback.print_exc()
-
-    def on_wake_word_detected(self, wakeword, score):
-        print(f"🔊 Wake word '{wakeword}' detected (score: {score:.2f})")
-        self.on_voice_trigger()
-
-    def cleanup(self):
-        self.detector.stop()
-        self.detector.cleanup()
-        self.recorder.cleanup()
-        self.recorder.mic_selector.cleanup()
-
+    def on_wake_word_detected(self, *args, **kwargs):
+        print("🟢 Wake word detected!")
 
     def run(self):
-        """Start system with wake word only"""
-        print("✅ Voice assistant initialized. Waiting for wake word ('Hey Lucy')...")
+        print("🚀 Starting assistant...")
+        try:
+            self.lip_reader.start()
+            print("👄 Lip reader started")
+        except Exception as e:
+            print(f"⚠️ Lip reader not started: {e}")
 
         try:
-            # Start wake word detector in a separate thread to avoid blocking
             self.detector.start()
+            print("🟢 Wake-word detector running — say 'hey lucy'")
+        except Exception as e:
+            print(f"⚠️ Wake-word detector not started: {e}")
 
+        try:
             while True:
-                time.sleep(1)
-
+                time.sleep(0.25)
         except KeyboardInterrupt:
             print("\n🛑 Exiting...")
-        except Exception as e:
-            print(f"❌ Error: {e}")
-            import traceback
-            traceback.print_exc()
-        finally:
-            print("Cleaning up...")
-            self.cleanup()
-            self.detector.stop()
-            self.detector.cleanup()
-            if self.glasses:
-                self.glasses.close()
 
 
 if __name__ == "__main__":

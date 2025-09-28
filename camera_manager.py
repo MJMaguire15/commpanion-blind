@@ -12,7 +12,7 @@ class CameraManager:
     
     def __init__(
         self,
-        camera_id: int = 0,
+        camera_id: Union[int, str] = 0,
         image_dir: str = "captured",
         image_width: int = 640,
         image_height: int = 480,
@@ -286,5 +286,23 @@ class CameraManager:
         
         return info
     
+    def _open_capture(self, cam_id: Union[int, str]) -> Optional[cv2.VideoCapture]:
+        """Open camera by MSMF name ('video=...') or index; fallback to DSHOW."""
+        def _mk(arg, backend):
+            cap = cv2.VideoCapture(arg, backend)
+            return cap if cap.isOpened() else None
+
+        if isinstance(cam_id, str):
+            name = cam_id if cam_id.lower().startswith('video=') else f'video={cam_id}'
+            cap = _mk(name, cv2.CAP_MSMF) or _mk(name, cv2.CAP_DSHOW)
+        else:
+            cap = _mk(cam_id, cv2.CAP_MSMF) or _mk(cam_id, cv2.CAP_DSHOW)
+
+        if cap:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            cap.set(cv2.CAP_PROP_FPS, 30)
+        return cap
+
     def __repr__(self):
         return f"CameraManager(camera_id={self.camera_id}, image_dir='{self.image_dir}')"

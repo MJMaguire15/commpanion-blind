@@ -60,7 +60,7 @@ multiprocess==0.70.15
 networkx==3.4.2
 numba==0.61.2
 numpy==1.26.4
-onnxruntime-qnn==1.22.0
+onnxruntime>=1.19,<1.24
 openai-whisper==20231117
 opencv-python==4.11.0.86
 openwakeword==0.6.0
@@ -72,7 +72,6 @@ pillow==11.3.0
 prettytable==3.11.0
 prompt_toolkit==3.0.51
 propcache==0.3.2
-protobuf==3.20.3
 pure_eval==0.2.3
 pyarrow==20.0.0
 PyAudio==0.2.14
@@ -91,8 +90,7 @@ pytz==2025.2
 pywin32==310
 pywinusb==0.4.2
 PyYAML==6.0.2
-qai-hub==0.31.0
-qai-hub-models==0.31.0
+qai-hub-models
 regex==2024.11.6
 requests==2.32.3
 requests-toolbelt==1.0.0
@@ -131,3 +129,6 @@ wcwidth==0.2.13
 wsproto==1.2.0
 xxhash==3.5.0
 yarl==1.20.1
+mediapipe==0.10.14
+onnx==1.16.2
+protobuf>=4.25.3,<5
