@@ -18,8 +18,8 @@ class SpeechToTextApplication:
         """
         self.model = WhisperBaseEn.from_pretrained()
         self.app = WhisperApp(
-            OnnxModelTorchWrapper.OnNPU("models\whisper_base_en-whisperencoderinf.onnx"), #self.model.encoder,
-            OnnxModelTorchWrapper.OnNPU("models\whisper_base_en-whisperdecoderinf.onnx"), #self.model.decoder,
+            OnnxModelTorchWrapper.OnCPU("models\whisper_base_en-whisperencoderinf.onnx"), #self.model.encoder,
+            OnnxModelTorchWrapper.OnCPU("models\whisper_base_en-whisperdecoderinf.onnx"), #self.model.decoder,
             num_decoder_blocks=self.model.num_decoder_blocks,
             num_decoder_heads=self.model.num_decoder_heads,
             attention_dim=self.model.attention_dim,
