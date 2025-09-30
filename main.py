@@ -22,10 +22,10 @@ class VoiceAssistant:
         self.blip = BlipModel()
         self.ocr = DocTROCR()
 
-        # Camera / LipReader targeting Lenovo A3
-        A3_CAM = "Lenovo ThinkReality A3 RGB Camera"
-        self.camera_manager = CameraManager(camera_id=f"video={A3_CAM}", image_dir="image")
-        self.lip_reader = LipReader(camera_id=f"video={A3_CAM}", backend="torchscript", on_text=self.on_lip_text)
+        # Camera / LipReader targeting Lenovo A3 (numeric index)
+        cam_id = 2  # try 1; if it isn’t the A3 RGB, change to 0
+        self.camera_manager = CameraManager(camera_id=cam_id, image_dir="image")
+        self.lip_reader     = LipReader(   camera_id=cam_id, backend="torchscript", on_text=self.on_lip_text)
 
         # Wake word
         self.detector = WakeWordDetector(

@@ -1,0 +1,6 @@
+modality: video
+root_dir: .\roi_root
+test_file: list.csv
+pretrained_model_path: .\auto_avsr\checkpoints\vsr_trlrs2lrs3vox2avsp_base.pth
+decode_snr_target: 999999
+debug: true
