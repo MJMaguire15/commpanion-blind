@@ -1,0 +1,16 @@
+[submodule "auto_avsr"]
+	path = auto_avsr
+	url = https://github.com/MJMaguire15/auto_avsr.git
+	branch = a3-work-20250930_2122
+[submodule "av_hubert"]
+	path = av_hubert
+	url = https://github.com/MJMaguire15/av_hubert.git
+	branch = a3-work-20250930_2122
+[submodule "face_alignment"]
+	path = face_alignment
+	url = https://github.com/MJMaguire15/face_alignment.git
+	branch = a3-work-20250930_2122
+[submodule "face_detection"]
+	path = face_detection
+	url = https://github.com/MJMaguire15/face_detection.git
+	branch = a3-work-20250930_2122
