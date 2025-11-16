@@ -196,3 +196,54 @@ cython_debug/
 models
 
 yolov8l-oiv7.pt
+
+# ==== Project-specific (commpanion-blind) ====
+
+# Recording sessions & temp AVSR outputs
+sessions/
+.tmp_avsr_runner/
+roi_root/                # generated ROI trees (if created outside sessions)
+
+# Logs (runtime + eval dumps)
+logs/
+*.log
+**/logs/**
+**/last_stdout.txt
+**/last_stderr.txt
+**/eval_stdout.txt
+**/eval_stderr.txt
+**/roi_video_info.txt
+
+# Generated labels (from mouth_crop_to_mp4.py)
+**/labels/list.csv
+
+# Media artifacts (don’t version raw/lips clips)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wav
+*.flac
+
+# Models / checkpoints / large binaries
+auto_avsr/checkpoints/
+models/
+*.pt
+*.pth
+*.onnx
+*.bin
+*.npz
+yolov8l-oiv7.pt
+
+# Camera snapshots (from CameraManager)
+image/*.jpg
+image/*.jpeg
+image/*.png
+
+# Cache (belt & suspenders)
+.cache/
+**/__pycache__/
+
+# Keep samples or CI if you add them
+!samples/**
+!.github/**

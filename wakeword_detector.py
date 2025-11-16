@@ -5,12 +5,14 @@ from openwakeword.utils import download_models
 import threading
 import queue
 import os
+import time
 from typing import Callable, Optional, Dict, Any
 import logging
 
+
 class WakeWordDetector:
     """Modular wake word detector using openWakeWord."""
-    
+
     def __init__(
         self,
         wakeword_models: list[str] = None,
@@ -19,165 +21,144 @@ class WakeWordDetector:
         chunk_size: int = 1280,
         sample_rate: int = 16000,
         channels: int = 1,
+        input_device_index: Optional[int] = None,
+        min_trigger_interval: float = 1.0,
         logger: Optional[logging.Logger] = None
     ):
-        """
-        Initialize the wake word detector.
-        
-        Args:
-            wakeword_models: List of models to load (default: ['hey_jarvis'])
-            inference_framework: Inference framework ('onnx' or 'tflite')
-            threshold: Detection threshold (0-1)
-            chunk_size: Audio chunk size
-            sample_rate: Audio sample rate
-            channels: Number of audio channels
-            logger: Custom logger
-        """
         self.wakeword_models = wakeword_models or ['hey_jarvis']
         self.threshold = threshold
         self.chunk_size = chunk_size
         self.sample_rate = sample_rate
         self.channels = channels
+        self.input_device_index = input_device_index
+        self.min_trigger_interval = min_trigger_interval
         self.logger = logger or logging.getLogger(__name__)
-        
-        # Initialize the model
+
         self.model = Model(
             wakeword_models=self.wakeword_models,
             inference_framework=inference_framework
         )
-        
-        # Audio setup
+
         self.audio_format = pyaudio.paInt16
         self.audio = pyaudio.PyAudio()
         self.stream = None
-        
-        # Threading and state
+
         self.is_listening = False
         self.audio_queue = queue.Queue()
         self.callbacks: Dict[str, Callable] = {}
-        
+
+        self._last_trigger_ts = 0.0
+        self.processing_thread: Optional[threading.Thread] = None
+
     def register_callback(self, wakeword: str, callback: Callable[[str, float], Any]):
-        """
-        Register a callback function for a specific wake word.
-        
-        Args:
-            wakeword: Name of the wake word
-            callback: Function to call (receives detected wake word and score)
-        """
         self.callbacks[wakeword] = callback
         self.logger.info(f"Callback registered for '{wakeword}'")
-        
+
     def _audio_callback(self, in_data, frame_count, time_info, status):
-        """Callback for audio stream."""
         if self.is_listening:
             self.audio_queue.put(in_data)
         return (in_data, pyaudio.paContinue)
-    
+
     def _process_audio(self):
-        """Audio processing thread."""
         self.logger.info("Starting audio processing")
-        
         while self.is_listening:
             try:
-                # Retrieve audio data
                 audio_data = self.audio_queue.get(timeout=0.1)
-                
-                # Convert to numpy array
                 audio_array = np.frombuffer(audio_data, dtype=np.int16)
-                
-                # Make predictions
                 predictions = self.model.predict(audio_array)
-                
-                # Check for detections
+
+                now = time.time()
                 for wakeword, score in predictions.items():
-                    if score > self.threshold:
+                    if score > self.threshold and (now - self._last_trigger_ts) >= self.min_trigger_interval:
+                        self._last_trigger_ts = now
                         self.logger.info(f"Wake word detected: {wakeword} (score: {score:.2f})")
-                        # Call the callback if available
                         if wakeword in self.callbacks:
                             try:
                                 self.callbacks[wakeword](wakeword, score)
                             except Exception as e:
                                 self.logger.error(f"Error in callback: {e}")
-                        
-                        # Reset to prevent multiple detections
                         self.model.reset()
-                        
             except queue.Empty:
                 continue
             except Exception as e:
                 self.logger.error(f"Error during audio processing: {e}")
 
     @classmethod
-    def download_models(self):
+    def download_models(cls):
         if not os.path.exists("resources/models"):
             print("Downloading and installing openWakeWord")
-            # One-time download of all pre-trained models (or only select models)
             download_models()
             print("✅ openWakeWord installed successfully\n")
-    
+
     def start(self):
-        """Start listening for wake words."""
-
         print("Starting wake word detector")
-
         if self.is_listening:
             self.logger.warning("Detector is already running")
             return
-        
+
         self.logger.info("Starting wake word detector")
         self.is_listening = True
-        
-        # Open audio stream
+
         self.stream = self.audio.open(
             format=self.audio_format,
             channels=self.channels,
             rate=self.sample_rate,
             input=True,
+            input_device_index=self.input_device_index,
             frames_per_buffer=self.chunk_size,
             stream_callback=self._audio_callback
         )
-        
-        # Start audio processing thread
-        self.processing_thread = threading.Thread(target=self._process_audio)
+
+        self.processing_thread = threading.Thread(target=self._process_audio, daemon=True, name="oWW-processor")
         self.processing_thread.start()
-        
+
         self.logger.info("Detector started and listening")
-    
+
+    def _close_stream(self):
+        if self.stream:
+            try:
+                self.stream.stop_stream()
+                self.stream.close()
+            finally:
+                self.stream = None
+
     def stop(self):
-        """Stop listening."""
-        if not self.is_listening:
+        """Stop listening and tear down safely (works even if called from worker)."""
+        if not self.is_listening and self.stream is None:
             return
-        
+
         self.logger.info("Stopping detector")
         self.is_listening = False
-        
-        # Wait for thread to finish
-        if hasattr(self, 'processing_thread'):
-            self.processing_thread.join()
-        
-        # Close audio stream
-        if self.stream:
-            self.stream.stop_stream()
-            self.stream.close()
-        
-        # Clear audio queue
+
+        if self.processing_thread and threading.current_thread() is not self.processing_thread:
+            try:
+                self.processing_thread.join()
+            except Exception:
+                pass
+
+        self._close_stream()
+
         while not self.audio_queue.empty():
-            self.audio_queue.get()
-        
+            try:
+                self.audio_queue.get_nowait()
+            except Exception:
+                break
+
         self.logger.info("Detector stopped")
-    
+
+    # Friendly wrappers
+    def pause(self):
+        self.stop()
+
+    def resume(self):
+        self.start()
+
     def __enter__(self):
-        """Context manager for automatic start."""
         self.start()
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager for automatic stop."""
         self.stop()
-        
+
     def cleanup(self):
-        """Clean up resources."""
-        if self.stream is not None:
-            self.stream.stop_stream()
-            self.stream.close()
-            self.stream = None
+        self.stop()
