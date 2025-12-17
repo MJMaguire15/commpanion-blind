@@ -196,20 +196,17 @@ class LipReader:
                 print(f"[LipReader] AV-HuBERT backend unavailable: {e}")
                 return ""
             try:
-                return avhubert_decode(window)
+                text = avhubert_decode(window) or ""
+                text = " ".join(text.split())
+
+                bad_prefix = "pretrained weights of the full model are loaded successfully"
+                if text.lower().startswith(bad_prefix):
+                    return ""
+
+                return text
             except Exception as e:
                 print(f"[LipReader] AV-HuBERT decode error: {e}")
                 return ""
-
-        if self.model is None:
-            return ""  # No-op without a model
-
-        try:
-            import torch
-            import torch.nn.functional as F
-        except Exception as e:
-            print(f"[LipReader] Torch backend unavailable: {e}")
-            return ""
 
         with torch.no_grad():
             x = torch.from_numpy(window).unsqueeze(0).unsqueeze(2)  # [1, T, 1, H, W]
@@ -218,10 +215,11 @@ class LipReader:
                 logits = self.model(x)  # expected to return [B, T, C]
                 if isinstance(logits, (list, tuple)):
                     logits = logits[0]
-                probs = torch.nn.functional.log_softmax(logits, dim=-1).cpu().numpy()
+                probs = F.log_softmax(logits, dim=-1).cpu().numpy()
                 text = ctc_greedy_decode(probs, self.labels)
                 text = " ".join(text.split())
                 return text
             except Exception as e:
                 print(f"[LipReader] Inference error: {e}")
                 return ""
+
