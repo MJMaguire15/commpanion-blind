@@ -2,6 +2,8 @@
 import os, sys, time, cv2, argparse, subprocess, datetime, re
 from pathlib import Path
 
+from inference_cpu import run_from_roi_root
+
 # --- your defaults ---
 DEFAULT_FPS = 25
 DEFAULT_W, DEFAULT_H = 1280, 720
@@ -275,7 +277,7 @@ def main():
         playback(raw_mp4, "Raw (10s)", fps=args.fps)
         playback(lips_mp4, "Lips-only (10s)", fps=args.fps)
 
-    text = run_auto_avsr(roi_root, list_csv, args.ckpt, logs_dir)
+    text = run_from_roi_root(roi_root=str(roi_root), test_file=list_csv.name, ckpt_path=args.ckpt)
     print("\n🗣️ Transcript:", text if text else "(empty)")
 
     # === auto-speak right after decoding (uses your old TTS) ===
