@@ -3,12 +3,13 @@ import os
 import torch
 from types import SimpleNamespace
 
-from datamodule.data_module import DataModule
-from datamodule.transforms import TextTransform
+from auto_avsr.datamodule.data_module import DataModule
+from auto_avsr.datamodule.transforms import TextTransform
 
-from espnet.nets.batch_beam_search import BatchBeamSearch
-from espnet.nets.pytorch_backend.e2e_asr_conformer import E2E
-from espnet.nets.scorers.length_bonus import LengthBonus
+from auto_avsr.espnet.nets.batch_beam_search import BatchBeamSearch
+from auto_avsr.espnet.nets.pytorch_backend.e2e_asr_conformer import E2E
+from auto_avsr.espnet.nets.scorers.length_bonus import LengthBonus
+
 
 
 def _get_beam_search_decoder(model, token_list, ctc_weight=0.1, lm_weight=0.0, penalty=0.0, beam_size=40):
