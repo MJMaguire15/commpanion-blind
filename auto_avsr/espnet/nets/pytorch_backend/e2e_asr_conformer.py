@@ -6,16 +6,21 @@
 
 import torch
 
-from espnet.nets.pytorch_backend.frontend.resnet import video_resnet
-from espnet.nets.pytorch_backend.frontend.resnet1d import audio_resnet
-from espnet.nets.pytorch_backend.ctc import CTC
-from espnet.nets.pytorch_backend.encoder.conformer_encoder import ConformerEncoder
-from espnet.nets.pytorch_backend.decoder.transformer_decoder import TransformerDecoder
-from espnet.nets.pytorch_backend.nets_utils import make_non_pad_mask, th_accuracy
-from espnet.nets.pytorch_backend.transformer.add_sos_eos import add_sos_eos
-from espnet.nets.pytorch_backend.transformer.label_smoothing_loss import LabelSmoothingLoss
-from espnet.nets.pytorch_backend.transformer.mask import target_mask
-from espnet.nets.scorers.ctc import CTCPrefixScorer
+from .frontend.resnet import video_resnet
+from .frontend.resnet1d import audio_resnet
+
+from .ctc import CTC
+from .encoder.conformer_encoder import ConformerEncoder
+from .decoder.transformer_decoder import TransformerDecoder
+
+from .nets_utils import make_non_pad_mask, th_accuracy
+
+from .transformer.add_sos_eos import add_sos_eos
+from .transformer.label_smoothing_loss import LabelSmoothingLoss
+from .transformer.mask import target_mask
+
+from ..scorers.ctc import CTCPrefixScorer
+
 
 
 class E2E(torch.nn.Module):

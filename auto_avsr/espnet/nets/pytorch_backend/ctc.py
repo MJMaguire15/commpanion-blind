@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from espnet.nets.pytorch_backend.nets_utils import to_device
+from .nets_utils import to_device
 
 
 class CTC(torch.nn.Module):

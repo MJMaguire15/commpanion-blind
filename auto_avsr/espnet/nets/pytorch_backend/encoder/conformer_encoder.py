@@ -8,12 +8,13 @@
 
 import copy
 import torch
-from espnet.nets.pytorch_backend.nets_utils import rename_state_dict
-from espnet.nets.pytorch_backend.transformer.attention import RelPositionMultiHeadedAttention
-from espnet.nets.pytorch_backend.transformer.embedding import RelPositionalEncoding
-from espnet.nets.pytorch_backend.transformer.layer_norm import LayerNorm
-from espnet.nets.pytorch_backend.transformer.positionwise_feed_forward import PositionwiseFeedForward
-from espnet.nets.pytorch_backend.transformer.repeat import repeat
+from ..nets_utils import rename_state_dict
+from ..transformer.attention import RelPositionMultiHeadedAttention
+from ..transformer.embedding import RelPositionalEncoding
+from ..transformer.layer_norm import LayerNorm
+from ..transformer.positionwise_feed_forward import PositionwiseFeedForward
+from ..transformer.repeat import repeat
+
 
 
 class ConvolutionModule(torch.nn.Module):
