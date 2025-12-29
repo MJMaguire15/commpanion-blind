@@ -1,6 +1,6 @@
 # mouth_crop_to_mp4.py
 import os, argparse, math, cv2
-from mediapipe.python.solutions.face_mesh import FaceMesh, FACEMESH_LIPS
+#from mediapipe.python.solutions.face_mesh import FaceMesh, FACEMESH_LIPS
 
 def square_expand(x0,y0,x1,y1,scale,W,H):
     cx=(x0+x1)/2; cy=(y0+y1)/2

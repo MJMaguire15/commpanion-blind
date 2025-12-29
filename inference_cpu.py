@@ -1,6 +1,8 @@
 # inference_cpu.py
 import os
 import torch
+torch.set_grad_enabled(False)
+
 from types import SimpleNamespace
 
 from auto_avsr.datamodule.data_module import DataModule
@@ -15,7 +17,12 @@ from auto_avsr.espnet.nets.scorers.length_bonus import LengthBonus
 # ---------------------------------------------------------
 # Beam search helper
 # ---------------------------------------------------------
-def _get_beam_search_decoder(model, token_list, ctc_weight=0.1, beam_size=40):
+def _get_beam_search_decoder(
+    model,
+    token_list,
+    ctc_weight=0.3,      # ↑ slightly higher CTC = faster
+    beam_size=8          # ↓ BIG latency win
+):
     sos = model.odim - 1
     eos = model.odim - 1
 
@@ -38,16 +45,19 @@ def _get_beam_search_decoder(model, token_list, ctc_weight=0.1, beam_size=40):
         sos=sos,
         eos=eos,
         token_list=token_list,
-        pre_beam_score_key=None if ctc_weight == 1.0 else "decoder",
+        pre_beam_score_key="decoder",
     )
+
 
 
 # ---------------------------------------------------------
 # Model loader
 # ---------------------------------------------------------
 def load_model(ckpt_path: str, modality: str = "video", ctc_weight: float = 0.1):
-    torch.set_num_threads(min(8, os.cpu_count() or 8))
+    torch.set_num_threads(4)
     torch.set_num_interop_threads(1)
+    #torch.set_num_threads(min(8, os.cpu_count() or 8))
+    #torch.set_num_interop_threads(1)
 
     text_transform = TextTransform()
     token_list = text_transform.token_list
@@ -62,6 +72,12 @@ def load_model(ckpt_path: str, modality: str = "video", ctc_weight: float = 0.1)
     state = ckpt["state_dict"] if "state_dict" in ckpt else ckpt
     model.load_state_dict(state, strict=False)
     model.eval()
+
+    try:
+        model = torch.compile(model, mode="reduce-overhead")
+    except Exception as e:
+        print("[WARN] torch.compile failed:", e)
+
 
     beam = _get_beam_search_decoder(model, token_list, ctc_weight=ctc_weight)
 

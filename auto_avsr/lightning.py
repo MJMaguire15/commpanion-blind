@@ -3,9 +3,9 @@ import torchaudio
 from cosine import WarmupCosineScheduler
 from datamodule.transforms import TextTransform
 
-from espnet.nets.batch_beam_search import BatchBeamSearch
-from espnet.nets.pytorch_backend.e2e_asr_conformer import E2E
-from espnet.nets.scorers.length_bonus import LengthBonus
+from auto_avsr.espnet.nets.batch_beam_search import BatchBeamSearch
+from auto_avsr.espnet.nets.pytorch_backend.e2e_asr_conformer import E2E
+from auto_avsr.espnet.nets.scorers.length_bonus import LengthBonus
 from pytorch_lightning import LightningModule
 
 

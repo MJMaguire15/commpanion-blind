@@ -4,7 +4,7 @@
 # Copyright 2021 Imperial College London (Pingchuan Ma)
 # Apache 2.0  (http://www.apache.org/licenses/LICENSE-2.0)
 
-import mediapipe as mp
+#import mediapipe as mp
 import numpy as np
 
 

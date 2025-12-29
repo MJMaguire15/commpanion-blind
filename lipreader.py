@@ -7,10 +7,10 @@ import numpy as np
 from typing import Callable, Optional, Deque, List
 from collections import deque
 
-try:
-    import mediapipe as mp  # type: ignore
-except Exception:
-    mp = None
+#try:
+    #import mediapipe as mp  # type: ignore
+#except Exception:
+mp = None
 
 try:
     import torch
