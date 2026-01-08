@@ -8,6 +8,7 @@ import os
 import time
 from typing import Callable, Optional, Dict, Any
 import logging
+from pathlib import Path
 
 
 class WakeWordDetector:
@@ -34,11 +35,29 @@ class WakeWordDetector:
         self.min_trigger_interval = min_trigger_interval
         self.logger = logger or logging.getLogger(__name__)
 
+        # -------------------------------------------------
+        # FIX: Explicitly point openWakeWord to local ONNX files
+        # -------------------------------------------------
+        HERE = Path(__file__).resolve().parent
+        OWW_MODELS = HERE / "models" / "openwakeword"
+
+        if not OWW_MODELS.exists():
+            raise FileNotFoundError(
+                f"openWakeWord models directory not found: {OWW_MODELS}"
+            )
+
         self.model = Model(
             wakeword_models=self.wakeword_models,
-            inference_framework=inference_framework
+            inference_framework=inference_framework,
+
+            # REQUIRED because PyPI wheel is missing resources/
+            melspec_model_path=str(OWW_MODELS / "melspectrogram.onnx"),
+            embedding_model_path=str(OWW_MODELS / "embedding_model.onnx"),
         )
 
+        # -------------------------------------------------
+        # Audio setup
+        # -------------------------------------------------
         self.audio_format = pyaudio.paInt16
         self.audio = pyaudio.PyAudio()
         self.stream = None
@@ -69,15 +88,21 @@ class WakeWordDetector:
 
                 now = time.time()
                 for wakeword, score in predictions.items():
-                    if score > self.threshold and (now - self._last_trigger_ts) >= self.min_trigger_interval:
+                    if (
+                        score > self.threshold
+                        and (now - self._last_trigger_ts) >= self.min_trigger_interval
+                    ):
                         self._last_trigger_ts = now
-                        self.logger.info(f"Wake word detected: {wakeword} (score: {score:.2f})")
+                        self.logger.info(
+                            f"Wake word detected: {wakeword} (score: {score:.2f})"
+                        )
                         if wakeword in self.callbacks:
                             try:
                                 self.callbacks[wakeword](wakeword, score)
                             except Exception as e:
                                 self.logger.error(f"Error in callback: {e}")
                         self.model.reset()
+
             except queue.Empty:
                 continue
             except Exception as e:
@@ -106,10 +131,12 @@ class WakeWordDetector:
             input=True,
             input_device_index=self.input_device_index,
             frames_per_buffer=self.chunk_size,
-            stream_callback=self._audio_callback
+            stream_callback=self._audio_callback,
         )
 
-        self.processing_thread = threading.Thread(target=self._process_audio, daemon=True, name="oWW-processor")
+        self.processing_thread = threading.Thread(
+            target=self._process_audio, daemon=True, name="oWW-processor"
+        )
         self.processing_thread.start()
 
         self.logger.info("Detector started and listening")
@@ -123,7 +150,7 @@ class WakeWordDetector:
                 self.stream = None
 
     def stop(self):
-        """Stop listening and tear down safely (works even if called from worker)."""
+        """Stop listening and tear down safely."""
         if not self.is_listening and self.stream is None:
             return
 
